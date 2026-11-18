@@ -20,7 +20,7 @@ DATE_COLUMNS = {
     "usage": ("last_active_date",),
     "ai_seats": ("last_active_date",),
 }
-_FORMATS = ("%Y-%m-%d", "%d/%m/%Y")
+_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d")
 _MONTH_INDEX = {name: i + 1 for i, name in enumerate(MONTHS)}
 
 
@@ -34,13 +34,19 @@ def parse_date(value: object) -> date | None:
             return datetime.strptime(text, fmt).date()
         except ValueError:
             continue
-    parts = text.split()
-    if len(parts) == 3 and parts[1] in _MONTH_INDEX and parts[0].isdigit() and parts[2].isdigit():
-        try:
-            return date(int(parts[2]), _MONTH_INDEX[parts[1]], int(parts[0]))
-        except ValueError:
-            return None
-    return None
+    parts = text.replace(",", "").split()
+    if len(parts) != 3:
+        return None
+    if parts[1] in _MONTH_INDEX and parts[0].isdigit() and parts[2].isdigit():  # 18 Nov 2026
+        day, month, year = parts[0], parts[1], parts[2]
+    elif parts[0] in _MONTH_INDEX and parts[1].isdigit() and parts[2].isdigit():  # Nov 18, 2026
+        month, day, year = parts
+    else:
+        return None
+    try:
+        return date(int(year), _MONTH_INDEX[month], int(day))
+    except ValueError:
+        return None
 
 
 def parse_dates(table: pd.DataFrame, columns: tuple[str, ...]) -> pd.DataFrame:

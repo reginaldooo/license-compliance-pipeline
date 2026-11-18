@@ -13,6 +13,8 @@ FIRST = ("Camille", "Louis", "Ines", "Hugo", "Sari", "Budi", "Dewi", "Agus", "Le
 LAST = ("Martin", "Bernard", "Petit", "Wijaya", "Santoso", "Lambert", "Hakim", "Moreau")
 NOTICE_CHOICES = (30, 60, 90)
 BAD_DATES = ("TBD", "31/02/2026", "13/13/2026", "n/a")
+MESSY_BAD_DATES = ("18-11-26", "Q4 2026", "next month", "Feb 31, 2027")
+MISSING_FIELDS = ("seats_purchased", "notice_days", "annual_cost")
 EMAIL_DOMAIN = "aerolux.example"
 
 
@@ -142,7 +144,7 @@ def _boundary_overrides(
 
 
 def _dq_extras(
-    rng: np.random.Generator, make_extra, base: list[dict], n: int
+    rng: np.random.Generator, make_extra, base: list[dict], n: int, messy: bool = False
 ) -> tuple[list[dict], list[tuple[str, str, str]]]:
     extras, truth = [], []
     for idx in (int(i) for i in rng.permutation(len(base))[:n]):
@@ -155,7 +157,8 @@ def _dq_extras(
     for i in range(n):
         rec = make_extra()
         if i % 2 == 0:
-            rec = {**rec, "renewal_date": BAD_DATES[(i // 2) % len(BAD_DATES)]}
+            bad_dates = BAD_DATES + (MESSY_BAD_DATES if messy else ())
+            rec = {**rec, "renewal_date": bad_dates[(i // 2) % len(bad_dates)]}
         else:
             rec = {**rec, "start_date": rec["renewal_date"], "renewal_date": rec["start_date"]}
         extras.append(rec)
@@ -164,6 +167,10 @@ def _dq_extras(
         rec = make_extra()
         extras.append({**rec, "seats_purchased": -int(rec["seats_purchased"])})
         truth.append(("dq", "negative_seats", rec["contract_id"]))
+    for i in range(n if messy else 0):
+        rec = {**make_extra(), MISSING_FIELDS[i % len(MISSING_FIELDS)]: None}
+        extras.append(rec)
+        truth.append(("dq", "missing_value", rec["contract_id"]))
     return extras, truth
 
 
@@ -220,7 +227,7 @@ def build_contracts(
             rng, f"C{counter[0]:04d}", products.loc[combo[0]], combo[1], owners_by_site, today
         )
 
-    extras, dq_truth = _dq_extras(rng, make_extra, records, scenario.n_inject)
+    extras, dq_truth = _dq_extras(rng, make_extra, records, scenario.n_inject, scenario.messy)
     contract_only = set(plan.contract_only)
     structural = [
         ("dq", "contract_without_inventory", c["contract_id"])

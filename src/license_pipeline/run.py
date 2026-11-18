@@ -26,6 +26,7 @@ def _utc_now() -> datetime:
 NO_METRICS = {
     "alert_precision": float("nan"), "alert_recall": float("nan"),
     "dq_precision": float("nan"), "dq_recall": float("nan"),
+    "match_precision": float("nan"), "match_recall": float("nan"),
 }
 
 
@@ -52,10 +53,15 @@ def _evaluate(raw_dir: Path, tables: dict[str, pd.DataFrame]) -> tuple[dict, tup
     truth = evaluate.read_ground_truth(raw_dir)
     alert_scores = evaluate.score(tables["alert"], truth, "alert")
     dq_scores = evaluate.score(tables["dq_issue"], truth, "dq")
+    match_scores = evaluate.score(evaluate.match_found(tables["fact_inventory"]), truth, "match")
     ap, ar = evaluate.overall(alert_scores)
     dp, dr = evaluate.overall(dq_scores)
-    metrics = {"alert_precision": ap, "alert_recall": ar, "dq_precision": dp, "dq_recall": dr}
-    return metrics, (alert_scores, dq_scores)
+    mp, mr = evaluate.overall(match_scores)
+    metrics = {
+        "alert_precision": ap, "alert_recall": ar, "dq_precision": dp, "dq_recall": dr,
+        "match_precision": mp, "match_recall": mr,
+    }
+    return metrics, (alert_scores, dq_scores, match_scores)
 
 
 def _write_step_summary(scenario_name: str, scores: tuple) -> None:

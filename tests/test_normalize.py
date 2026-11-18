@@ -63,3 +63,25 @@ def test_every_generated_name_maps_to_its_true_product(catalog):
     mappable = inv["_product_id"].notna()
     assert (out.loc[mappable, "product_id"] == inv.loc[mappable, "_product_id"]).all()
     assert out.loc[~mappable, "product_id"].isna().all()
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("VMware vSp", "P012"), ("Microsoft 3", "P001"),
+        ("Project Pl", "P003"), (" microsoft 36 ", "P001"),
+    ],
+)
+def test_truncated_names_map_by_unique_prefix(catalog, raw, expected):
+    product_id, method, _ = match_name(raw, catalog)
+    assert product_id == expected and method in ("prefix", "fuzzy")
+
+
+def test_a_fragment_shared_by_several_products_is_not_guessed(catalog):
+    product_id, method, _ = match_name("Microsoft", catalog)
+    assert (product_id, method) == (None, "none")
+
+
+@pytest.mark.parametrize("raw", ["Microsoft", "VMw", "Adobe", "Micro"])
+def test_ambiguous_or_short_prefixes_stay_unmapped(catalog, raw):
+    assert match_name(raw, catalog)[0] is None

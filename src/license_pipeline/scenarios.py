@@ -18,6 +18,7 @@ class Scenario:
     borderline: bool = False
     messy: bool = False
     conflicts: bool = False
+    unmapped_multiplier: int = 1
 
 
 SCENARIOS: dict[str, Scenario] = {
@@ -29,6 +30,13 @@ SCENARIOS: dict[str, Scenario] = {
             "Near-miss cases on both sides of every threshold: renewals at 30/31/60/61/90/91 days, "
             "installs at entitlement -1/0/+1, seats idle 89 to 92 days, moderate install growth.",
             borderline=True,
+        ),
+        Scenario(
+            "messy",
+            "Harsher product-name noise, extra date formats, blank contract fields, and three "
+            "times as many unknown products.",
+            messy=True,
+            unmapped_multiplier=3,
         ),
         Scenario(
             "scale",

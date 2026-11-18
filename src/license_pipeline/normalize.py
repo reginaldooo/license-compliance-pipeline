@@ -32,7 +32,9 @@ RULES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     )
 )
 
-NoMatch = tuple[None, str, float]
+MIN_MATCH_LEN = 6  # shorter fragments are too vague to fuzzy-match
+MIN_PREFIX_LEN = 8  # a truncated cell must keep at least this much of the name
+AMBIGUITY_MARGIN = 2.0  # a second product this close to the best score makes it a tie
 
 
 def _clean(raw: str) -> str:
@@ -47,11 +49,32 @@ def match_name(raw: str, catalog: pd.DataFrame) -> tuple[str | None, str, float]
     for pattern, product_id in RULES:
         if pattern.search(text):
             return product_id, "rule", 100.0
-    names = catalog["catalog_name"].tolist()
-    best = process.extractOne(text, names, scorer=fuzz.WRatio, processor=utils.default_process)
-    if best is None or best[1] < config.FUZZY_MIN_SCORE:
-        return None, "none", float(best[1]) if best else 0.0
-    return catalog["product_id"].iloc[best[2]], "fuzzy", float(best[1])
+    if len(text) < MIN_MATCH_LEN:
+        return None, "none", 0.0
+    ranked = process.extract(
+        text, catalog["catalog_name"].tolist(), scorer=fuzz.WRatio,
+        processor=utils.default_process, limit=2,
+    )
+    best = ranked[0]
+    tied = len(ranked) > 1 and best[1] - ranked[1][1] <= AMBIGUITY_MARGIN
+    if best[1] >= config.FUZZY_MIN_SCORE and not tied:
+        return catalog["product_id"].iloc[best[2]], "fuzzy", float(best[1])
+    prefixed = _unique_prefix(text, catalog)
+    if prefixed is not None:
+        return prefixed, "prefix", 100.0 * len(text) / len(_names_by_id(catalog)[prefixed])
+    return None, "none", float(best[1])
+
+
+def _names_by_id(catalog: pd.DataFrame) -> dict[str, str]:
+    return dict(zip(catalog["product_id"], catalog["catalog_name"], strict=True))
+
+
+def _unique_prefix(text: str, catalog: pd.DataFrame) -> str | None:
+    """A cell cut off by column width: map it when it begins exactly one catalog name."""
+    if len(text) < MIN_PREFIX_LEN:
+        return None
+    hits = [pid for pid, name in _names_by_id(catalog).items() if name.lower().startswith(text)]
+    return hits[0] if len(hits) == 1 else None
 
 
 def normalize_inventory(inventory: pd.DataFrame, catalog: pd.DataFrame) -> pd.DataFrame:

@@ -57,6 +57,7 @@ def build_inventory(
     plan: ComboPlan,
     today: date,
     n_unmapped: int = config.INJECT_PER_RULE,
+    harsh_names: bool = False,
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     names = catalog.set_index("product_id")["catalog_name"].to_dict()
     scan_dates = [today - timedelta(days=d) for d in config.SCAN_OFFSETS_DAYS]
@@ -91,7 +92,7 @@ def build_inventory(
             )
         for scan_date, total in zip(scan_dates, totals, strict=True):
             for part in _split(rng, total):
-                name = messy_name(product_id, names[product_id], rng)
+                name = messy_name(product_id, names[product_id], rng, harsh_names)
                 row_id = add_row(scan_date, product_id, name, site_id, part)
                 if combo in inventory_only:
                     truth.append(("dq", "inventory_without_contract", row_id))

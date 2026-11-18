@@ -27,6 +27,13 @@ def _invalid_date_mask(contracts: pd.DataFrame) -> pd.Series:
     return pd.Series(bad, index=contracts.index)
 
 
+REQUIRED_NUMBERS = ["seats_purchased", "annual_cost", "notice_days"]
+
+
+def _missing_value_mask(contracts: pd.DataFrame) -> pd.Series:
+    return contracts[REQUIRED_NUMBERS].isna().any(axis=1)
+
+
 def _negative_seats_mask(contracts: pd.DataFrame) -> pd.Series:
     return contracts["seats_purchased"] < 0
 
@@ -49,6 +56,11 @@ def check_invalid_dates(contracts: pd.DataFrame) -> pd.DataFrame:
 def check_negative_seats(contracts: pd.DataFrame) -> pd.DataFrame:
     ids = contracts.loc[_negative_seats_mask(contracts), "contract_id"]
     return _rows("negative_seats", "contracts", ids.tolist(), ERROR)
+
+
+def check_missing_values(contracts: pd.DataFrame) -> pd.DataFrame:
+    ids = contracts.loc[_missing_value_mask(contracts), "contract_id"]
+    return _rows("missing_value", "contracts", ids.tolist(), ERROR)
 
 
 def check_unmapped_product(inventory: pd.DataFrame) -> pd.DataFrame:
@@ -89,6 +101,7 @@ def quarantine(contracts: pd.DataFrame) -> pd.DataFrame:
         _missing_owner_mask(contracts)
         | _invalid_date_mask(contracts)
         | _negative_seats_mask(contracts)
+        | _missing_value_mask(contracts)
     )
     return contracts.loc[~bad].drop_duplicates("contract_id").reset_index(drop=True)
 
@@ -105,6 +118,7 @@ def run_checks(
             check_missing_owner(contracts),
             check_invalid_dates(contracts),
             check_negative_seats(contracts),
+            check_missing_values(contracts),
             check_unmapped_product(inventory),
             check_contract_without_inventory(valid, owners, mapped),
             check_inventory_without_contract(inventory, valid, owners),
