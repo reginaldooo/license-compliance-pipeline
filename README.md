@@ -58,8 +58,23 @@ Every parameter lives in `src/license_pipeline/config.py`.
 
 Rows that fail a blocking data quality check are quarantined and excluded from alert evaluation.
 
+## Alert rules
+
+| Rule | Definition |
+|---|---|
+| renewal_30 / 60 / 90 | Days until the notice deadline (renewal date minus notice days) is within 30, 60, or 90 days. A passed deadline falls in the 30 tier with high severity |
+| installs_over_entitlement | Latest scan installs per product and site exceed seats purchased by valid contracts of owners at that site |
+| seat_unused_90d | Usage or AI seat with no activity for more than 90 days |
+| usage_spike | Month-over-month install growth per product and site above Q3 + 1.5 x IQR across all pairs |
+| price_change_renewal | Contract signed before a vendor price change date and renewing on or after it |
+
+## Evaluation
+
+`uv run python -m license_pipeline.evaluate` regenerates the data, runs the pipeline, and writes `reports/eval_report.md` with precision and recall per rule. On seed 42 and on 30 other seeds every rule recovered all injected cases with no false alarms. Injected cases sit well clear of every threshold, so this shows the rules match their definitions. It is not an accuracy claim for real data.
+
 ## Status
 
 - [x] Day 1: scaffold, config, catalog, assumptions register
 - [x] Day 2: seeded generator with injected anomalies and ground truth (30 tests, 99% coverage)
 - [x] Day 3: ingest, name normalization (rules, then fuzzy), 7 data quality checks matching ground truth exactly (84 tests, 99% coverage)
+- [x] Day 4: 5 alert rule families (7 scored rules), pipeline orchestration, precision/recall evaluation (`reports/eval_report.md`, 104 tests, 99% coverage)

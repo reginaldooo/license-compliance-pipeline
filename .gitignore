@@ -5,6 +5,5 @@ __pycache__/
 .coverage
 data/raw/
 data/curated/
-reports/
 *.json
 .env
