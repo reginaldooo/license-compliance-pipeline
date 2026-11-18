@@ -36,7 +36,7 @@ Every parameter lives in `src/license_pipeline/config.py`.
 | Renewal windows | 30, 60, 90 days | Alert rule definition, combined with `notice_days` |
 | Usage spike | IQR rule, k = 1.5 | Standard outlier fence |
 | Price change | Microsoft after 2026-07-01 | Assumed vendor price change for the rule |
-| Fuzzy match min score | 88 | Tuned on the generator's name noise |
+| Fuzzy match min score | 88 | rapidfuzz WRatio. Mapped every case, typo, and suffix variant and no unrelated name when tuned on the generator's noise |
 | Injected anomalies | 8 per alert rule | Ground truth for precision and recall |
 | Unit costs | Rounded list-price estimates | Illustrative only, not real quotes |
 | Product names | Raw names carry typos, case, and vendor prefixes | Mimics spreadsheet inventory |
@@ -62,3 +62,4 @@ Rows that fail a blocking data quality check are quarantined and excluded from a
 
 - [x] Day 1: scaffold, config, catalog, assumptions register
 - [x] Day 2: seeded generator with injected anomalies and ground truth (30 tests, 99% coverage)
+- [x] Day 3: ingest, name normalization (rules, then fuzzy), 7 data quality checks matching ground truth exactly (84 tests, 99% coverage)
