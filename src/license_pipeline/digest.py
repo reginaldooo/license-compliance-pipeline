@@ -39,12 +39,19 @@ def alerts_for_site(
 
 
 def name_products(message: str, product_names: Mapping[str, str]) -> str:
-    """Replace product ids such as P004 with 'Adobe Acrobat Pro (P004)'."""
-    def replace(match: re.Match[str]) -> str:
-        pid = match.group()
-        return f"{product_names[pid]} ({pid})" if pid in product_names else pid
+    """Replace product ids with names: 'P004' becomes 'Adobe Acrobat Pro (P004)'.
 
-    return re.sub(r"\bP\d{3}\b", replace, message)
+    An id already inside parentheses becomes the plain name, so no parentheses nest.
+    """
+
+    def replace(match: re.Match[str]) -> str:
+        pid = match.group("pid")
+        name = product_names.get(pid)
+        if name is None:
+            return match.group()
+        return f"({name})" if match.group("open") else f"{name} ({pid})"
+
+    return re.sub(r"(?P<open>\()?\b(?P<pid>P\d{3})\b(?(open)\))", replace, message)
 
 
 def top_alerts(alerts: pd.DataFrame, limit: int = DEFAULT_TOP_N) -> pd.DataFrame:

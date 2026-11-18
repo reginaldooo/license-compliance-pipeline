@@ -155,3 +155,13 @@ def test_digest_shows_product_names(contracts, owners):
         a, contracts, owners, "S1", TODAY, 0, product_names={"P001": "Microsoft 365 E3"}
     )
     assert "Microsoft 365 E3 (P001) at S1" in text
+
+
+def test_name_products_does_not_nest_parentheses():
+    names = {"P012": "VMware vSphere"}
+    assert (
+        digest.name_products("Contract C0004 (P012): notice in 21 days", names)
+        == "Contract C0004 (VMware vSphere): notice in 21 days"
+    )
+    both = digest.name_products("P012 at S1 (P012)", names)
+    assert both == "VMware vSphere (P012) at S1 (VMware vSphere)"
