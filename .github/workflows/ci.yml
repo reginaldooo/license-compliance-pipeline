@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run pytest --cov-fail-under=80
+      - name: Smoke run (local, synthetic data)
+        run: uv run python -m license_pipeline.run --local --generate
+      - name: Evaluation report
+        run: uv run python -m license_pipeline.evaluate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: reports/eval_report.md

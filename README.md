@@ -72,9 +72,31 @@ Rows that fail a blocking data quality check are quarantined and excluded from a
 
 `uv run python -m license_pipeline.evaluate` regenerates the data, runs the pipeline, and writes `reports/eval_report.md` with precision and recall per rule. On seed 42 and on 30 other seeds every rule recovered all injected cases with no false alarms. Injected cases sit well clear of every threshold, so this shows the rules match their definitions. It is not an accuracy claim for real data.
 
+## Running the pipeline
+
+```bash
+# local only: writes Parquet to data/curated/ and a run log row
+uv run python -m license_pipeline.run --local --generate
+
+# with BigQuery (needs credentials, see below)
+export GCP_PROJECT=your-project-id
+export BQ_DATASET=license_compliance      # optional, this is the default
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+uv run python -m license_pipeline.run --generate
+```
+
+| Table | BigQuery load mode | Why |
+|---|---|---|
+| dim_product, dim_owner, fact_*, dq_issue, alert | Replace each run | The dashboard reads the current state. Rows carry the `run_id` that produced them |
+| pipeline_run_log | Append | Keeps one row per run: row counts, issue count, status, and the error text on failure |
+
+A failed run writes a `failed` row to the local run log and re-raises, so a scheduled job turns red instead of passing silently.
+
 ## Status
 
 - [x] Day 1: scaffold, config, catalog, assumptions register
 - [x] Day 2: seeded generator with injected anomalies and ground truth (30 tests, 99% coverage)
 - [x] Day 3: ingest, name normalization (rules, then fuzzy), 7 data quality checks matching ground truth exactly (84 tests, 99% coverage)
 - [x] Day 4: 5 alert rule families (7 scored rules), pipeline orchestration, precision/recall evaluation (`reports/eval_report.md`, 104 tests, 99% coverage)
+- [x] Day 5 (local part): Parquet load, BigQuery loader (tested with a fake client), run log, CLI, CI workflow (112 tests, 99% coverage)
+- [ ] Day 5 (cloud part): first real BigQuery load
