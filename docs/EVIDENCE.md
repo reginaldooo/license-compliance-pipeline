@@ -17,10 +17,11 @@ This file lets a reviewer check that the pipeline runs on its own, without takin
 This table is rewritten by a workflow after each digest run. Runs older than 7 days are dropped on purpose.
 
 <!-- runs:start -->
-2 runs in the last 7 days: 0 scheduled, 2 manual; 1 succeeded, 1 failed.
+3 runs in the last 7 days: 0 scheduled, 3 manual; 2 succeeded, 1 failed.
 
 | Run time (UTC) | Trigger | Result | Link |
 |---|---|---|---|
+| 2026-11-18 10:07 | manual | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44282364779) |
 | 2026-11-18 09:40 | manual | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44278179929) |
 | 2026-11-18 09:37 | manual | failure | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44277672354) |
 <!-- runs:end -->
