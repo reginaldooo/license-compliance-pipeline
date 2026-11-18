@@ -19,14 +19,26 @@ def _scale(rng: np.random.Generator, value: int, lo: float, hi: float) -> int:
 
 
 def _scan_totals(
-    rng: np.random.Generator, entitlement: int, is_over: bool, is_spike: bool
+    rng: np.random.Generator,
+    entitlement: int,
+    is_over: bool,
+    is_spike: bool,
+    edge_offset: int | None = None,
+    edge_growth: float | None = None,
 ) -> list[int]:
     """Installs per scan, oldest first. The latest scan carries the over-entitlement case."""
-    if is_over:
+    if edge_offset is not None:
+        latest = max(entitlement + edge_offset, 1)
+    elif is_over:
         latest = math.ceil(entitlement * float(rng.uniform(1.1, 1.5)))
     else:
         latest = _scale(rng, entitlement, 0.5, 0.95)
-    middle = _scale(rng, latest, 0.3, 0.5) if is_spike else _scale(rng, latest, 0.93, 1.0)
+    if edge_growth is not None:
+        middle = max(round(latest / (1 + edge_growth)), 1)
+    elif is_spike:
+        middle = _scale(rng, latest, 0.3, 0.5)
+    else:
+        middle = _scale(rng, latest, 0.93, 1.0)
     oldest = _scale(rng, middle, 0.93, 1.0)
     return [oldest, middle, latest]
 
@@ -51,6 +63,7 @@ def build_inventory(
     rows: list[dict] = []
     truth: list[tuple[str, str, str]] = []
     inventory_only = set(plan.inventory_only)
+    edge_installs, edge_spike = dict(plan.edge_installs), dict(plan.edge_spike)
 
     def add_row(scan_date: date, product_id: str | None, raw_name: str, site_id: str, n: int):
         row_id = f"I{len(rows) + 1:05d}"
@@ -72,7 +85,10 @@ def build_inventory(
             base = int(rng.integers(30, 200))
             totals = _scan_totals(rng, base * 2, False, False)
         else:
-            totals = _scan_totals(rng, entitlement[combo], combo in plan.over, combo in plan.spike)
+            totals = _scan_totals(
+                rng, entitlement[combo], combo in plan.over, combo in plan.spike,
+                edge_installs.get(combo), edge_spike.get(combo),
+            )
         for scan_date, total in zip(scan_dates, totals, strict=True):
             for part in _split(rng, total):
                 name = messy_name(product_id, names[product_id], rng)
@@ -82,6 +98,10 @@ def build_inventory(
         if combo in plan.over:
             truth.append(("alert", "installs_over_entitlement", f"{product_id}|{site_id}"))
         if combo in plan.spike:
+            truth.append(("alert", "usage_spike", f"{product_id}|{site_id}"))
+        if edge_installs.get(combo, 0) > 0:
+            truth.append(("alert", "installs_over_entitlement", f"{product_id}|{site_id}"))
+        if edge_spike.get(combo, 0) >= config.SPIKE_TRUE_GROWTH:
             truth.append(("alert", "usage_spike", f"{product_id}|{site_id}"))
 
     site_ids = list(config.SITES)

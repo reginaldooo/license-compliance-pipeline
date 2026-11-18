@@ -25,6 +25,12 @@ SCENARIOS: dict[str, Scenario] = {
     for s in (
         Scenario("baseline", "Clean spreadsheets. Injected cases sit well clear of thresholds."),
         Scenario(
+            "borderline",
+            "Near-miss cases on both sides of every threshold: renewals at 30/31/60/61/90/91 days, "
+            "installs at entitlement -1/0/+1, seats idle 89 to 92 days, moderate install growth.",
+            borderline=True,
+        ),
+        Scenario(
             "scale",
             "Eight times the volume with the same noise level.",
             n_contracts=960,

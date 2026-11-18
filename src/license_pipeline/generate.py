@@ -38,6 +38,7 @@ def generate_clean(
         config.N_CONTRACT_ONLY_COMBOS,
         config.N_INVENTORY_ONLY_COMBOS,
         scenario.n_inject,
+        scenario.borderline,
     )
     owners = build_owners(rng)
     contracts, contract_truth, entitlement = build_contracts(
@@ -46,8 +47,14 @@ def generate_clean(
     inventory, inventory_truth = build_inventory(
         rng, catalog, entitlement, plan, today, scenario.n_inject
     )
-    usage, usage_truth = build_usage(rng, catalog, today, scenario.n_usage_seats)
-    ai_seats, ai_truth = build_ai_seats(rng, catalog, today, scenario.n_ai_seats)
+    usage, usage_truth = build_usage(
+        rng, catalog, today, scenario.n_usage_seats,
+        config.IDLE_BOUNDARY_USAGE_PER_AGE if scenario.borderline else 0,
+    )
+    ai_seats, ai_truth = build_ai_seats(
+        rng, catalog, today, scenario.n_ai_seats,
+        config.IDLE_BOUNDARY_AI_PER_AGE if scenario.borderline else 0,
+    )
     truth = pd.DataFrame(
         [*contract_truth, *inventory_truth, *usage_truth, *ai_truth],
         columns=["kind", "rule", "record_ref"],

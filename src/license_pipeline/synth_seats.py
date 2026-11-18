@@ -15,22 +15,31 @@ AI_OVERLAP = {"P016": "P017", "P017": "P016", "P018": "P017"}
 
 
 def _last_active(
-    rng: np.random.Generator, n: int, today: date
+    rng: np.random.Generator, n: int, today: date, boundary_per_age: int = 0
 ) -> tuple[list[date], set[int]]:
     unused = {int(i) for i in rng.permutation(n)[: round(config.UNUSED_SEAT_SHARE * n)]}
     dates = []
     for i in range(n):
         low, high = (UNUSED_MIN_DAYS, UNUSED_MAX_DAYS) if i in unused else (0, ACTIVE_MAX_DAYS)
         dates.append(today - timedelta(days=int(rng.integers(low, high + 1))))
+    if boundary_per_age:
+        ages = [a for a in config.IDLE_BOUNDARY_AGES for _ in range(boundary_per_age)]
+        for idx, age in zip((int(i) for i in rng.permutation(n)), ages, strict=False):
+            dates[idx] = today - timedelta(days=age)
+            unused = (unused | {idx}) if age > config.UNUSED_DAYS else (unused - {idx})
     return dates, unused
 
 
 def build_usage(
-    rng: np.random.Generator, catalog: pd.DataFrame, today: date, n: int = config.N_USAGE_SEATS
+    rng: np.random.Generator,
+    catalog: pd.DataFrame,
+    today: date,
+    n: int = config.N_USAGE_SEATS,
+    boundary_per_age: int = 0,
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     eligible = catalog[(catalog["metric"] == "user") & (catalog["category"] != "ai")]
     product_ids = eligible["product_id"].tolist()
-    dates, unused = _last_active(rng, n, today)
+    dates, unused = _last_active(rng, n, today, boundary_per_age)
     rows = [
         {
             "seat_id": f"SEAT-{i + 1:05d}",
@@ -45,11 +54,15 @@ def build_usage(
 
 
 def build_ai_seats(
-    rng: np.random.Generator, catalog: pd.DataFrame, today: date, n: int = config.N_AI_SEATS
+    rng: np.random.Generator,
+    catalog: pd.DataFrame,
+    today: date,
+    n: int = config.N_AI_SEATS,
+    boundary_per_age: int = 0,
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     ai = catalog[catalog["category"] == "ai"].set_index("product_id")
     product_ids = ai.index.tolist()
-    dates, unused = _last_active(rng, n, today)
+    dates, unused = _last_active(rng, n, today, boundary_per_age)
     rows = []
     for i in range(n):
         product_id = product_ids[int(rng.integers(len(product_ids)))]

@@ -105,6 +105,42 @@ def _price_overrides(
     return overrides, truth
 
 
+def _tier_for(days_to_notice: int) -> int | None:
+    return next((w for w in (30, 60, 90) if days_to_notice <= w), None)
+
+
+def _boundary_overrides(
+    rng: np.random.Generator,
+    base: list[dict],
+    non_price: list[int],
+    price: list[int],
+    taken: set[int],
+    today: date,
+) -> tuple[dict[int, dict], list[tuple[str, str, str]]]:
+    """Contracts sitting on the edges of the renewal windows and the price-change date."""
+    overrides, truth = {}, []
+    days = [d for d in config.BOUNDARY_NOTICE_DAYS for _ in range(config.N_PER_BOUNDARY_DAY)]
+    free = [i for i in non_price if i not in taken]
+    for idx, d in zip((int(i) for i in rng.permutation(free)), days, strict=False):
+        renewal = today + timedelta(days=d + base[idx]["notice_days"])
+        overrides[idx] = {
+            **base[idx], "renewal_date": renewal, "start_date": renewal - timedelta(days=365),
+        }
+        tier = _tier_for(d)
+        if tier:
+            truth.append(("alert", f"renewal_{tier}", base[idx]["contract_id"]))
+    change = config.PRICE_CHANGES["Microsoft"]
+    free_ms = [i for i in price if i not in taken]
+    for k, idx in enumerate(int(i) for i in rng.permutation(free_ms)[:4]):
+        start = change - timedelta(days=k % 2)  # even: on the change date, odd: the day before
+        overrides[idx] = {
+            **base[idx], "start_date": start, "renewal_date": start + timedelta(days=730),
+        }
+        if k % 2:
+            truth.append(("alert", "price_change_renewal", base[idx]["contract_id"]))
+    return overrides, truth
+
+
 def _dq_extras(
     rng: np.random.Generator, make_extra, base: list[dict], n: int
 ) -> tuple[list[dict], list[tuple[str, str, str]]]:
@@ -161,7 +197,14 @@ def build_contracts(
 
     tier_over, tier_truth = _tier_overrides(rng, base, non_price, today, scenario.n_inject)
     price_over, price_truth = _price_overrides(rng, base, price, scenario.n_inject)
-    records = [{**c, **tier_over.get(i, {}), **price_over.get(i, {})} for i, c in enumerate(base)]
+    edge_over, edge_truth = {}, []
+    if scenario.borderline:
+        taken = set(tier_over) | set(price_over)
+        edge_over, edge_truth = _boundary_overrides(rng, base, non_price, price, taken, today)
+    records = [
+        {**c, **tier_over.get(i, {}), **price_over.get(i, {}), **edge_over.get(i, {})}
+        for i, c in enumerate(base)
+    ]
 
     entitlement: dict[Combo, int] = {}
     for c in base:
@@ -187,4 +230,4 @@ def build_contracts(
     everything = [*records, *extras]
     order = [int(i) for i in rng.permutation(len(everything))]
     frame = pd.DataFrame([everything[i] for i in order])
-    return frame, [*tier_truth, *price_truth, *dq_truth, *structural], entitlement
+    return frame, [*tier_truth, *price_truth, *edge_truth, *dq_truth, *structural], entitlement

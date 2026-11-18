@@ -41,3 +41,14 @@ SCAN_OFFSETS_DAYS = (62, 32, 2)  # monthly inventory scans, oldest first
 RENEWAL_TIERS = ((30, 3, 27), (60, 33, 57), (90, 63, 87))  # (window, min, max days to notice)
 N_CONTRACT_ONLY_COMBOS = 4
 N_INVENTORY_ONLY_COMBOS = 4
+
+# Borderline scenario: near-miss cases on both sides of each threshold
+BOUNDARY_NOTICE_DAYS = (0, 30, 31, 60, 61, 90, 91, 92)  # days to notice deadline
+N_PER_BOUNDARY_DAY = 2
+EDGE_INSTALL_OFFSETS = (-1, 0, 1)  # latest installs minus entitlement
+N_COMBOS_PER_EDGE = 2
+EDGE_SPIKE_GROWTH = (0.12, 0.15, 0.20, 0.60, 0.70, 0.80)  # decoys, then moderate true spikes
+SPIKE_TRUE_GROWTH = 0.5  # growth at or above this counts as a true spike in the ground truth
+IDLE_BOUNDARY_AGES = (89, 90, 91, 92)  # days since last activity
+IDLE_BOUNDARY_USAGE_PER_AGE = 8
+IDLE_BOUNDARY_AI_PER_AGE = 2

@@ -123,9 +123,10 @@ Each run uses one data scenario. `--scenario random` picks one from the date, so
 | Scenario | What changes |
 |---|---|
 | baseline | Clean data, injected cases well clear of every threshold |
+| borderline | Near-misses on both sides of every threshold: notice deadlines at 0, 30, 31, 60, 61, 90, 91, 92 days, installs at entitlement -1, 0, +1, seats idle 89 to 92 days, Microsoft contracts starting on and the day before the price-change date, and install growth from 12% to 80%. Labels follow the definitions in the alert rules table, written separately from the rule code |
 | scale | Eight times the volume (960 contracts, 12,000 usage seats), more injected cases |
 
-Every run records its scenario and its measured precision and recall (micro-averaged across rules) in `pipeline_run_log`, and prints a per-rule table on the GitHub Actions run page. Scenario results so far: the scale scenario exposed that the first spike rule failed when many pairs spiked at once, which led to the median-based rule above.
+Every run records its scenario and its measured precision and recall (micro-averaged across rules) in `pipeline_run_log`, and prints a per-rule table on the GitHub Actions run page. Scenario results so far: borderline found no off-by-one errors in the rules (20 seeds). The scale scenario exposed that the first spike rule failed when many pairs spiked at once, which led to the median-based rule above.
 
 ## Status
 
