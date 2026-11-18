@@ -1,0 +1,19 @@
+product_id,publisher,catalog_name,metric,category,unit_cost
+P001,Microsoft,Microsoft 365 E3,user,productivity,420
+P002,Microsoft,Visio Plan 2,user,productivity,180
+P003,Microsoft,Project Plan 3,user,productivity,360
+P004,Adobe,Adobe Acrobat Pro,user,productivity,240
+P005,Autodesk,AutoCAD,user,engineering,2100
+P006,Dassault Systemes,CATIA V5,user,engineering,9500
+P007,Dassault Systemes,SOLIDWORKS,user,engineering,4000
+P008,Ansys,Ansys Mechanical,user,engineering,18000
+P009,MathWorks,MATLAB,user,engineering,2200
+P010,Siemens,Siemens NX,user,engineering,12000
+P011,Oracle,Oracle Database Enterprise,core,infrastructure,47500
+P012,VMware,VMware vSphere,core,infrastructure,1400
+P013,Atlassian,Jira Software,user,collaboration,95
+P014,Atlassian,Confluence,user,collaboration,60
+P015,Slack,Slack Business+,user,collaboration,150
+P016,GitHub,GitHub Copilot Business,user,ai,228
+P017,Microsoft,Microsoft Copilot,user,ai,360
+P018,OpenAI,ChatGPT Team,user,ai,300
