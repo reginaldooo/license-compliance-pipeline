@@ -7,7 +7,8 @@ This file lets a reviewer check that the pipeline runs on its own, without takin
 | Claim | Evidence | How to check it |
 |---|---|---|
 | Tests and lint pass | The CI badge in the README and the [CI workflow runs](https://github.com/reginaldooo/license-compliance-pipeline/actions/workflows/ci.yml) | Run `uv run pytest` and `uv run ruff check .` |
-| Each rule's precision and recall is measured | [`reports/eval_report.md`](https://github.com/reginaldooo/license-compliance-pipeline/blob/main/reports/eval_report.md), rebuilt on every CI run | Run `uv run python -m license_pipeline.evaluate` |
+| Each rule's precision and recall is measured on six data scenarios | [`reports/eval_report.md`](https://github.com/reginaldooo/license-compliance-pipeline/blob/main/reports/eval_report.md), rebuilt on every CI run | Run `uv run python -m license_pipeline.evaluate` |
+| Each scheduled run uses a different scenario and records its own quality score | `scenario`, `alert_precision`, `alert_recall`, `dq_*` and `match_*` columns in `pipeline_run_log`, and a table on each Actions run page | Open a run, then its Summary tab |
 | It runs unattended on a schedule | The table below, built from the [Daily digest workflow runs](https://github.com/reginaldooo/license-compliance-pipeline/actions/workflows/daily-digest.yml) | Open any run link. Rows marked `scheduled` started by cron, `manual` ones were started by hand |
 | Results land in BigQuery | The `pipeline_run_log` table has one row per run with row counts, issue count, and status | Query it in the BigQuery console |
 | The digest email arrives | Screenshots in [`docs/evidence/`](https://github.com/reginaldooo/license-compliance-pipeline/tree/main/docs/evidence), added by hand with personal addresses cropped | Open the image files |
@@ -33,6 +34,6 @@ This table is rewritten by a workflow after each digest run. Runs older than 7 d
 | Only the last 7 days are kept | GitHub deletes old run logs automatically. The table is trimmed to match, so the history is not a long-term record |
 | Only `scheduled` rows show unattended operation | `manual` rows were started by hand to test or demo |
 | The data is synthetic | No real users, contracts, or savings exist. Nothing here shows adoption |
-| Precision and recall come from injected cases | Injected cases sit well clear of every threshold, so 100% shows the rules match their definitions, not that they would hold on real data |
+| Precision and recall come from injected cases | Labels follow the written rule definitions, so 100% shows the rules match their definitions, including boundary cases. It does not show they would hold on real data. Mismatches that do appear are in product-name matching |
 | BigQuery runs on the free sandbox | Tables expire after 60 days and are refreshed by each daily run |
 | This is not production monitoring | There is no on-call, alert routing, or retry beyond the GitHub failure email |

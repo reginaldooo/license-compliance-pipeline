@@ -49,3 +49,15 @@ def test_seed_changes_the_data():
     a = generate_clean(seed=1)["contracts"]["seats_purchased"].tolist()
     b = generate_clean(seed=2)["contracts"]["seats_purchased"].tolist()
     assert a != b
+
+
+def test_combined_scenario_turns_every_difficulty_on():
+    combined = scenarios.get_scenario("combined")
+    assert (combined.borderline, combined.messy, combined.conflicts) == (True, True, True)
+    assert combined.n_contracts > config.N_CONTRACTS
+
+
+def test_combined_scenario_truth_has_every_kind_of_case():
+    clean = generate_clean(scenario=scenarios.get_scenario("combined"))
+    rules = set(clean["ground_truth"]["rule"])
+    assert {"missing_value", "expired_contract", "usage_spike", "name_match", "renewal_90"} <= rules

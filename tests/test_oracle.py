@@ -16,7 +16,7 @@ def tier_for(days_to_notice: int) -> int | None:
     return next((w for w in (30, 60, 90) if days_to_notice <= w), None)
 
 
-@pytest.fixture(scope="module", params=["baseline", "borderline"])
+@pytest.fixture(scope="module", params=["baseline", "borderline", "messy", "conflict", "combined"])
 def clean(request):
     return generate_clean(scenario=scenarios.get_scenario(request.param))
 
@@ -27,10 +27,14 @@ def truth_refs(clean, rule):
 
 
 def valid_contracts(clean):
+    """Contracts the README says count as entitlements: no blocking data quality problem."""
     c = clean["contracts"]
-    ok = c["renewal_date"].map(lambda d: isinstance(d, date))
-    c = c[ok & (c["owner_id"] != "") & (c["seats_purchased"] > 0)]
-    return c[c["renewal_date"] > c["start_date"]].drop_duplicates("contract_id")
+    parsed = c["renewal_date"].map(lambda d: isinstance(d, date))
+    c = c[parsed & (c["owner_id"] != "") & c["owner_id"].isin(clean["owners"]["owner_id"])]
+    c = c[(c["seats_purchased"] > 0) & c["annual_cost"].notna() & c["notice_days"].notna()]
+    c = c[(c["renewal_date"] > c["start_date"]) & (c["renewal_date"] >= TODAY)]
+    distinct = clean["contracts"].drop_duplicates().groupby("contract_id").size()
+    return c[~c["contract_id"].isin(distinct[distinct > 1].index)].drop_duplicates("contract_id")
 
 
 def test_renewal_truth_matches_the_tier_definition(clean):

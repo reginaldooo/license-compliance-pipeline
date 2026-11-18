@@ -38,12 +38,35 @@ def test_score_only_covers_requested_kind():
     assert evaluate.score(found([]), truth(), "dq")["rule"].tolist() == ["d1"]
 
 
-def test_report_lists_rules_counts_and_synthetic_notice():
-    alert_scores = evaluate.score(found([("r1", "a")]), truth(), "alert")
-    dq_scores = evaluate.score(found([("d1", "k")]), truth(), "dq")
-    text = evaluate.render_report(alert_scores, dq_scores, {"contracts": 152})
+def test_aggregate_sums_counts_across_seeds_and_recomputes_rates():
+    first = evaluate.score(found([("r1", "a"), ("r1", "z")]), truth(), "alert")
+    second = evaluate.score(found([("r1", "a"), ("r1", "b"), ("r1", "c")]), truth(), "alert")
+    r1 = evaluate.aggregate([first, second]).set_index("rule").loc["r1"]
+    assert (r1["expected"], r1["flagged"], r1["tp"], r1["fp"], r1["fn"]) == (6, 5, 4, 1, 2)
+    assert math.isclose(r1["precision"], 4 / 5) and math.isclose(r1["recall"], 4 / 6)
+    assert r1["false_positives"] == ["z"]
+
+
+def _results():
+    alert = evaluate.score(found([("r1", "a")]), truth(), "alert")
+    dq = evaluate.score(found([("d1", "k")]), truth(), "dq")
+    match = evaluate.score(
+        found([("name_match", "x")]),
+        pd.DataFrame({"kind": ["match"], "rule": ["name_match"], "record_ref": ["x"]}),
+        "match",
+    )
+    first = evaluate.ScenarioResult("alpha", "first scenario", {"contracts": 152}, alert, dq, match)
+    second = evaluate.ScenarioResult("beta", "second scenario", {"contracts": 9}, alert, dq, match)
+    return [first, second]
+
+
+def test_full_report_has_summary_matrix_and_a_section_per_scenario():
+    text = evaluate.render_full_report(_results(), seeds=3)
     assert "synthetic" in text.lower()
-    assert "r1" in text and "d1" in text and "152" in text
+    assert "| alpha |" in text and "| beta |" in text
+    assert "## Scenario: alpha" in text and "## Scenario: beta" in text
+    assert "first scenario" in text and "152" in text and "r1" in text and "d1" in text
+    assert "3 seeds" in text
 
 
 def test_write_report_creates_file(tmp_path):

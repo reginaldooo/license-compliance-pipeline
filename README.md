@@ -74,7 +74,18 @@ Rows that fail a blocking data quality check are quarantined and excluded from a
 
 ## Evaluation
 
-`uv run python -m license_pipeline.evaluate` regenerates the data, runs the pipeline, and writes `reports/eval_report.md` with precision and recall per rule. On seed 42 and on 30 other seeds every rule recovered all injected cases with no false alarms. Injected cases sit well clear of every threshold, so this shows the rules match their definitions. It is not an accuracy claim for real data.
+`uv run python -m license_pipeline.evaluate` runs all six scenarios over five seeds each (30 pipeline runs, about 3 seconds) and writes `reports/eval_report.md` with precision and recall per rule, a summary matrix, and every mismatch. Latest summary:
+
+| Scenario | Alert rules (precision / recall) | Data quality checks | Product name matching |
+|---|---|---|---|
+| baseline | 100% / 100% | 100% / 100% | 100% / 100% |
+| borderline | 100% / 100% | 100% / 100% | 100% / 100% |
+| conflict | 100% / 100% | 100% / 100% | 100% / 100% |
+| scale | 100% / 100% | 100% / 100% | 100% / 100% |
+| messy | 100% / 100% | 99.4% / 100% | 100% / 99.5% |
+| combined | 100% / 100% | 99.7% / 99.9% | 100% / 99.7% |
+
+Read this carefully. The labels come from the generator and follow the rule definitions in this README, so a perfect score shows the rules match their written definitions, including every boundary tested in `borderline`. It does not show accuracy on real data. The only mismatches are in product-name matching and what depends on it, and all come from one known limit (see "What the scenarios found" below).
 
 ## Running the pipeline
 
@@ -126,6 +137,7 @@ Each run uses one data scenario. `--scenario random` picks one from the date, so
 | borderline | Near-misses on both sides of every threshold: notice deadlines at 0, 30, 31, 60, 61, 90, 91, 92 days, installs at entitlement -1, 0, +1, seats idle 89 to 92 days, Microsoft contracts starting on and the day before the price-change date, and install growth from 12% to 80%. Labels follow the definitions in the alert rules table, written separately from the rule code |
 | conflict | Contract ids that appear twice with different values (`conflicting_duplicate`), contracts whose renewal date has passed (`expired_contract`), and contracts whose owner id does not exist (`unknown_owner`). Conflicting copies are all quarantined, because there is no way to tell which one is right |
 | messy | Harsher product names (spaces removed, hyphens, dropped or doubled letters, version suffixes, truncated cells), five date formats instead of three, blank seats, cost, or notice days, and three times as many unknown products |
+| combined | Everything at once: borderline cases, messy data, conflicts, and about twice the volume (240 contracts, 3,000 usage seats) |
 | scale | Eight times the volume (960 contracts, 12,000 usage seats), more injected cases |
 
 Every run records its scenario and its measured precision and recall (micro-averaged across rules) in `pipeline_run_log`, and prints a per-rule table on the GitHub Actions run page. What the scenarios found so far: borderline found no off-by-one errors in the rules (20 seeds). The scale scenario exposed that the first spike rule failed when many pairs spiked at once, which led to the median-based rule above. The messy scenario exposed two problems in product-name matching, over 20 seeds: 30 of 2,484 mappable names (1.2%) failed because the cell was cut off, and the fuzzy matcher mapped bare vendor names such as "Microsoft" to one arbitrary product. Both are fixed (unique-prefix matching for cut-off cells, and ties between products now stay unmapped). Name-match recall rose from 98.8% to 99.6%, with no wrong mappings. The nine remaining misses are all `MATLAB` with a letter dropped, which falls under the 6-character floor for fuzzy matching. That floor stays, because guessing at 5-letter fragments is how false mappings start.

@@ -37,9 +37,12 @@ def test_pipeline_returns_curated_tables(result):
     assert {"dq_issue", "alert", "fact_inventory", "dim_product"} <= set(out)
 
 
-def test_evaluate_main_writes_full_report(tmp_path):
-    path = evaluate.main(tmp_path / "raw", tmp_path / "reports")
+def test_evaluate_main_scores_every_scenario(tmp_path):
+    from license_pipeline import scenarios
+
+    path = evaluate.main(tmp_path / "work", tmp_path / "reports", seeds=(1,))
     text = path.read_text()
     assert path.name == "eval_report.md"
-    assert "Alert rules: precision and recall" in text
-    assert "usage_spike" in text and "contracts after quarantine" in text
+    for name in scenarios.SCENARIOS:
+        assert f"## Scenario: {name}" in text
+    assert "Product name matching" in text and "contracts after quarantine" in text

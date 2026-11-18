@@ -32,6 +32,18 @@ SCENARIOS: dict[str, Scenario] = {
             borderline=True,
         ),
         Scenario(
+            "combined",
+            "Everything at once: borderline cases, messy data, conflicts, and about twice the "
+            "volume.",
+            n_contracts=240,
+            n_usage_seats=3000,
+            n_ai_seats=400,
+            borderline=True,
+            messy=True,
+            conflicts=True,
+            unmapped_multiplier=3,
+        ),
+        Scenario(
             "conflict",
             "Contract ids that appear twice with different values, contracts that already "
             "expired, and contracts whose owner does not exist.",
