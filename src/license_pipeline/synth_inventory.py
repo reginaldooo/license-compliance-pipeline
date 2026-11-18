@@ -44,6 +44,7 @@ def build_inventory(
     entitlement: dict[Combo, int],
     plan: ComboPlan,
     today: date,
+    n_unmapped: int = config.INJECT_PER_RULE,
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     names = catalog.set_index("product_id")["catalog_name"].to_dict()
     scan_dates = [today - timedelta(days=d) for d in config.SCAN_OFFSETS_DAYS]
@@ -84,7 +85,7 @@ def build_inventory(
             truth.append(("alert", "usage_spike", f"{product_id}|{site_id}"))
 
     site_ids = list(config.SITES)
-    for _ in range(config.INJECT_PER_RULE):
+    for _ in range(n_unmapped):
         name = UNMAPPED_NAMES[int(rng.integers(len(UNMAPPED_NAMES)))]
         site_id = site_ids[int(rng.integers(len(site_ids)))]
         row_id = add_row(scan_dates[-1], None, name, site_id, int(rng.integers(5, 61)))

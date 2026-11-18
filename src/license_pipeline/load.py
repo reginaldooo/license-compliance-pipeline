@@ -37,7 +37,10 @@ def load_bigquery(
             continue
         disposition = "WRITE_APPEND" if name in APPEND_TABLES else "WRITE_TRUNCATE"
         table_id = f"{project}.{dataset}.{name}"
-        job_config = bigquery.LoadJobConfig(write_disposition=disposition)
+        extra = {}
+        if name in APPEND_TABLES:
+            extra["schema_update_options"] = [bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION]
+        job_config = bigquery.LoadJobConfig(write_disposition=disposition, **extra)
         client.load_table_from_dataframe(table, table_id, job_config=job_config).result()
         loaded.append(table_id)
     return loaded

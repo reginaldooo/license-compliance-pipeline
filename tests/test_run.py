@@ -100,3 +100,57 @@ def test_deliver_digest_sends_with_env_settings(tmp_path, monkeypatch):
     subject, _, _, to, settings = sent[0]
     assert subject.startswith("[License digest] Paris") and to == ["you@x.test"]
     assert settings.user == "me@x.test"
+
+
+def test_log_records_scenario_and_quality_metrics(tmp_path):
+    result = run.run(
+        raw_dir=tmp_path / "raw", out_dir=tmp_path / "out", generate_data=True, clock=lambda: NOW
+    )
+    log = result["pipeline_run_log"].iloc[0]
+    assert log["scenario"] == "baseline"
+    assert log["alert_precision"] == 1.0 and log["alert_recall"] == 1.0
+    assert log["dq_precision"] == 1.0 and log["dq_recall"] == 1.0
+
+
+def test_log_has_blank_scenario_and_no_metrics_without_ground_truth(tmp_path):
+    from license_pipeline.generate import generate, write_raw
+
+    raw = generate()
+    write_raw({k: v for k, v in raw.items() if k != "ground_truth"}, tmp_path / "raw")
+    log = run.run(raw_dir=tmp_path / "raw", out_dir=tmp_path / "out", clock=lambda: NOW)[
+        "pipeline_run_log"
+    ].iloc[0]
+    assert log["scenario"] == "" and pd.isna(log["alert_precision"])
+
+
+def test_scenario_and_seed_are_used_for_generation(tmp_path):
+    from license_pipeline import scenarios
+
+    result = run.run(
+        raw_dir=tmp_path / "raw", out_dir=tmp_path / "out", generate_data=True,
+        scenario=scenarios.get_scenario("scale"), seed=7, clock=lambda: NOW,
+    )
+    assert len(result["fact_usage"]) == scenarios.get_scenario("scale").n_usage_seats
+    assert result["pipeline_run_log"]["scenario"].iloc[0] == "scale"
+
+
+def test_main_random_scenario_is_picked_from_the_date(tmp_path, capsys):
+    from datetime import date
+
+    from license_pipeline import scenarios
+
+    day = date(2026, 11, 19)
+    argv = ["--local", "--generate", "--scenario", "random", "--today", day.isoformat(),
+            "--raw-dir", str(tmp_path / "raw"), "--out-dir", str(tmp_path / "o")]
+    assert run.main(argv) == 0
+    assert f"scenario={scenarios.pick_scenario(day).name}" in capsys.readouterr().out
+
+
+def test_main_writes_github_step_summary(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    argv = ["--local", "--generate", "--raw-dir", str(tmp_path / "raw"),
+            "--out-dir", str(tmp_path / "o")]
+    assert run.main(argv) == 0
+    text = summary.read_text()
+    assert "baseline" in text and "installs_over_entitlement" in text

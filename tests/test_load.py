@@ -20,6 +20,7 @@ class FakeClient:
 
     def load_table_from_dataframe(self, frame, table_id, job_config=None):
         self.loads.append((table_id, len(frame), job_config.write_disposition))
+        self.last_config = job_config
         return FakeJob()
 
 
@@ -57,3 +58,10 @@ def test_bigquery_load_skips_helper_tables():
     extra = {**tables(), "raw_counts": pd.DataFrame({"x": [1]})}
     load.load_bigquery(extra, "p", "d", client=client)
     assert all("raw_counts" not in table_id for table_id, _, _ in client.loads)
+
+
+def test_append_loads_allow_new_columns_so_the_run_log_can_grow():
+    client = FakeClient()
+    log = {"pipeline_run_log": pd.DataFrame({"run_id": ["r"]})}
+    load.load_bigquery(log, "p", "d", client=client)
+    assert "ALLOW_FIELD_ADDITION" in [str(o) for o in client.last_config.schema_update_options]

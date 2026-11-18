@@ -21,7 +21,7 @@ def score(found: pd.DataFrame, truth: pd.DataFrame, kind: str) -> pd.DataFrame:
     """Precision and recall per rule for one kind of truth (alert or dq)."""
     expected_rows = truth[truth["kind"] == kind]
     rows = []
-    for rule in sorted(set(expected_rows["rule"])):
+    for rule in sorted(set(expected_rows["rule"]) | set(found["rule"])):
         expected = set(expected_rows.loc[expected_rows["rule"] == rule, "record_ref"])
         got = set(found.loc[found["rule"] == rule, "record_ref"])
         tp, fp, fn = len(expected & got), len(got - expected), len(expected - got)
@@ -40,6 +40,33 @@ def score(found: pd.DataFrame, truth: pd.DataFrame, kind: str) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows, columns=SCORE_COLUMNS)
+
+
+def overall(scores: pd.DataFrame) -> tuple[float, float]:
+    """Micro-averaged (precision, recall) across all rules in a score table."""
+    tp, fp, fn = scores["tp"].sum(), scores["fp"].sum(), scores["fn"].sum()
+    precision = tp / (tp + fp) if tp + fp else float("nan")
+    recall = tp / (tp + fn) if tp + fn else float("nan")
+    return float(precision), float(recall)
+
+
+def render_summary(scenario_name: str, alert_scores: pd.DataFrame, dq_scores: pd.DataFrame) -> str:
+    """Short markdown block for the GitHub Actions run page."""
+    ap, ar = overall(alert_scores)
+    dp, dr = overall(dq_scores)
+    return "\n".join(
+        [
+            f"## Evaluation: scenario `{scenario_name}`",
+            "",
+            f"Alert rules: precision {_pct(ap)}, recall {_pct(ar)}. "
+            f"Data quality checks: precision {_pct(dp)}, recall {_pct(dr)}.",
+            "",
+            *_table(alert_scores),
+            "",
+            *_table(dq_scores),
+            "",
+        ]
+    )
 
 
 def _pct(value: float) -> str:

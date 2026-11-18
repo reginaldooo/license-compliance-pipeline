@@ -132,3 +132,31 @@ def test_run_alerts_returns_standard_columns():
     out = alerts.run_alerts(c, owners(), catalog(), inventory, seats, seats, TODAY)
     assert list(out.columns) == alerts.ALERT_COLUMNS
     assert set(out["rule"]) == {"renewal_30", "price_change_renewal"}
+
+
+def _spike_inventory(n_normal, n_spike):
+    rows = []
+    for i in range(n_normal):
+        rows += [
+            (f"N{i}", "S1", TODAY - timedelta(30), 1000),
+            (f"N{i}", "S1", TODAY, 1000 + (i % 5) * 20),
+        ]
+    for i in range(n_spike):
+        rows += [(f"X{i}", "S1", TODAY - timedelta(30), 1000), (f"X{i}", "S1", TODAY, 2500)]
+    return inv(rows)
+
+
+def test_usage_spike_still_found_when_a_third_of_pairs_spike():
+    flagged = set(alerts.usage_spikes(_spike_inventory(24, 12))["record_ref"])
+    assert flagged == {f"X{i}|S1" for i in range(12)}
+
+
+def test_usage_spike_flat_baseline_still_flags_a_big_jump():
+    rows = [(f"N{i}", "S1", TODAY - timedelta(30), 100) for i in range(10)]
+    rows += [(f"N{i}", "S1", TODAY, 100) for i in range(10)]
+    rows += [("J", "S1", TODAY - timedelta(30), 100), ("J", "S1", TODAY, 160)]
+    assert alerts.usage_spikes(inv(rows))["record_ref"].tolist() == ["J|S1"]
+
+
+def test_usage_spike_small_normal_drift_is_not_flagged():
+    assert alerts.usage_spikes(_spike_inventory(30, 0)).empty

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from . import config
+from .scenarios import Scenario
 from .synth_plan import Combo, ComboPlan
 
 FIRST = ("Camille", "Louis", "Ines", "Hugo", "Sari", "Budi", "Dewi", "Agus", "Lea", "Noah")
@@ -69,9 +70,8 @@ def _new_contract(
 
 
 def _tier_overrides(
-    rng: np.random.Generator, base: list[dict], candidates: list[int], today: date
+    rng: np.random.Generator, base: list[dict], candidates: list[int], today: date, n: int
 ) -> tuple[dict[int, dict], list[tuple[str, str, str]]]:
-    n = config.INJECT_PER_RULE
     picks = [int(i) for i in rng.permutation(candidates)[: n * len(config.RENEWAL_TIERS)]]
     overrides, truth = {}, []
     for k, (window, lo, hi) in enumerate(config.RENEWAL_TIERS):
@@ -88,10 +88,10 @@ def _tier_overrides(
 
 
 def _price_overrides(
-    rng: np.random.Generator, base: list[dict], candidates: list[int]
+    rng: np.random.Generator, base: list[dict], candidates: list[int], n: int
 ) -> tuple[dict[int, dict], list[tuple[str, str, str]]]:
     change = config.PRICE_CHANGES["Microsoft"]
-    picks = [int(i) for i in rng.permutation(candidates)[: config.INJECT_PER_RULE]]
+    picks = [int(i) for i in rng.permutation(candidates)[:n]]
     overrides, truth = {}, []
     for idx in picks:
         start = change - timedelta(days=int(rng.integers(20, 301)))
@@ -106,9 +106,8 @@ def _price_overrides(
 
 
 def _dq_extras(
-    rng: np.random.Generator, make_extra, base: list[dict]
+    rng: np.random.Generator, make_extra, base: list[dict], n: int
 ) -> tuple[list[dict], list[tuple[str, str, str]]]:
-    n = config.INJECT_PER_RULE
     extras, truth = [], []
     for idx in (int(i) for i in rng.permutation(len(base))[:n]):
         extras.append({**base[idx]})
@@ -138,6 +137,7 @@ def build_contracts(
     owners: pd.DataFrame,
     plan: ComboPlan,
     today: date,
+    scenario: Scenario,
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]], dict[Combo, int]]:
     """Return contracts (with injected extras), ground-truth rows, and entitlement per combo."""
     products = catalog.set_index("product_id")
@@ -145,7 +145,7 @@ def build_contracts(
     combos = plan.normal + plan.contract_only
 
     base = []
-    for i in range(config.N_CONTRACTS):
+    for i in range(scenario.n_contracts):
         combo = combos[i] if i < len(combos) else combos[int(rng.integers(len(combos)))]
         base.append(
             _new_contract(
@@ -156,11 +156,11 @@ def build_contracts(
     is_price = [products.loc[c["product_id"], "publisher"] in config.PRICE_CHANGES for c in base]
     non_price = [i for i, flag in enumerate(is_price) if not flag]
     price = [i for i, flag in enumerate(is_price) if flag]
-    if len(price) < config.INJECT_PER_RULE:
+    if len(price) < scenario.n_inject:
         raise ValueError("not enough price-change publisher contracts to inject")
 
-    tier_over, tier_truth = _tier_overrides(rng, base, non_price, today)
-    price_over, price_truth = _price_overrides(rng, base, price)
+    tier_over, tier_truth = _tier_overrides(rng, base, non_price, today, scenario.n_inject)
+    price_over, price_truth = _price_overrides(rng, base, price, scenario.n_inject)
     records = [{**c, **tier_over.get(i, {}), **price_over.get(i, {})} for i, c in enumerate(base)]
 
     entitlement: dict[Combo, int] = {}
@@ -168,7 +168,7 @@ def build_contracts(
         key = (c["product_id"], c["site_id"])
         entitlement[key] = entitlement.get(key, 0) + c["seats_purchased"]
 
-    counter = [config.N_CONTRACTS]
+    counter = [scenario.n_contracts]
 
     def make_extra() -> dict:
         counter[0] += 1
@@ -177,7 +177,7 @@ def build_contracts(
             rng, f"C{counter[0]:04d}", products.loc[combo[0]], combo[1], owners_by_site, today
         )
 
-    extras, dq_truth = _dq_extras(rng, make_extra, records)
+    extras, dq_truth = _dq_extras(rng, make_extra, records, scenario.n_inject)
     contract_only = set(plan.contract_only)
     structural = [
         ("dq", "contract_without_inventory", c["contract_id"])

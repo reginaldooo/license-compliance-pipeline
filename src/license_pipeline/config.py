@@ -24,7 +24,9 @@ UNUSED_DAYS = 90
 
 # Alert thresholds
 RENEWAL_WINDOWS_DAYS = (30, 60, 90)
-SPIKE_IQR_K = 1.5
+SPIKE_MODIFIED_Z = 3.5  # Iglewicz-Hoaglin cut-off on the median-based z-score
+SPIKE_MIN_MAD = 0.01  # floor of one percentage point so a flat baseline still has a scale
+MAD_TO_SIGMA = 0.6745
 PRICE_CHANGES = {"Microsoft": date(2026, 7, 1)}  # renewals after this date get flagged
 
 # Fuzzy matching

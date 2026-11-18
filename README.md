@@ -38,7 +38,7 @@ Every parameter lives in `src/license_pipeline/config.py`.
 | Share of unused seats | 37% | Published SAM research reports about 36 to 38% unused seats |
 | Unused threshold | 90 days without activity | Alert rule definition |
 | Renewal windows | 30, 60, 90 days | Alert rule definition, combined with `notice_days` |
-| Usage spike | IQR rule, k = 1.5 | Standard outlier fence |
+| Usage spike | Modified z-score above 3.5 on median and MAD, MAD floor of 1 percentage point | An IQR fence missed every spike once a third of the pairs spiked, because the spikes raised the fence. Median-based statistics tolerate up to half |
 | Price change | Microsoft after 2026-07-01 | Assumed vendor price change for the rule |
 | Fuzzy match min score | 88 | rapidfuzz WRatio. Mapped every case, typo, and suffix variant and no unrelated name when tuned on the generator's noise |
 | Injected anomalies | 8 per alert rule | Ground truth for precision and recall |
@@ -69,7 +69,7 @@ Rows that fail a blocking data quality check are quarantined and excluded from a
 | renewal_30 / 60 / 90 | Days until the notice deadline (renewal date minus notice days) is within 30, 60, or 90 days. A passed deadline falls in the 30 tier with high severity |
 | installs_over_entitlement | Latest scan installs per product and site exceed seats purchased by valid contracts of owners at that site |
 | seat_unused_90d | Usage or AI seat with no activity for more than 90 days |
-| usage_spike | Month-over-month install growth per product and site above Q3 + 1.5 x IQR across all pairs |
+| usage_spike | Month-over-month install growth per product and site above median + 3.5 x MAD / 0.6745 across all pairs (robust to many spikes) |
 | price_change_renewal | Contract signed before a vendor price change date and renewing on or after it |
 
 ## Evaluation
@@ -115,6 +115,17 @@ Schedules (`.github/workflows/daily-digest.yml`), Monday to Friday:
 | Paris | `0 7 * * 1-5` and `0 8 * * 1-5` | 09:00 CEST in summer, 09:00 CET in winter |
 
 GitHub cron only supports UTC, so both Paris hours are scheduled. The program checks the site's local clock first and exits before running the pipeline unless it is 09:00 there. A delayed GitHub start still sends if it lands within the same local hour. `workflow_dispatch` can send or dry-run either site on demand.
+
+## Scenarios
+
+Each run uses one data scenario. `--scenario random` picks one from the date, so a given date always gives the same scenario and a bad run can be reproduced. `--seed` changes the data inside a scenario. The daily workflow passes the date as the seed too, so the data differs every day.
+
+| Scenario | What changes |
+|---|---|
+| baseline | Clean data, injected cases well clear of every threshold |
+| scale | Eight times the volume (960 contracts, 12,000 usage seats), more injected cases |
+
+Every run records its scenario and its measured precision and recall (micro-averaged across rules) in `pipeline_run_log`, and prints a per-rule table on the GitHub Actions run page. Scenario results so far: the scale scenario exposed that the first spike rule failed when many pairs spiked at once, which led to the median-based rule above.
 
 ## Status
 

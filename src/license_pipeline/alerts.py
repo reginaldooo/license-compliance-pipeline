@@ -94,7 +94,11 @@ def unused_seats(usage: pd.DataFrame, ai_seats: pd.DataFrame, today: date) -> pd
 
 
 def usage_spikes(inventory: pd.DataFrame) -> pd.DataFrame:
-    """Flag product-site pairs whose install growth exceeds the IQR fence across all pairs."""
+    """Flag product-site pairs whose install growth is far above the typical growth.
+
+    Uses the median and the median absolute deviation, so the rule still works when up to
+    half of the pairs spike. An IQR fence is pulled upward by the spikes it is meant to find.
+    """
     totals = _scan_totals(inventory)
     latest = totals[totals["scan_rank"] == 0]
     previous = totals[totals["scan_rank"] == 1]
@@ -103,8 +107,9 @@ def usage_spikes(inventory: pd.DataFrame) -> pd.DataFrame:
     if len(joined) < MIN_COMBOS_FOR_SPIKE:
         return _frame([])
     growth = joined["installs"] / joined["installs_prev"] - 1
-    q1, q3 = growth.quantile(0.25), growth.quantile(0.75)
-    fence = q3 + config.SPIKE_IQR_K * (q3 - q1)
+    median = growth.median()
+    mad = max((growth - median).abs().median(), config.SPIKE_MIN_MAD)
+    threshold = median + config.SPIKE_MODIFIED_Z * mad / config.MAD_TO_SIGMA
     rows = [
         {
             "rule": "usage_spike",
@@ -112,10 +117,10 @@ def usage_spikes(inventory: pd.DataFrame) -> pd.DataFrame:
             "contract_id": None,
             "severity": "medium",
             "message": f"{r.product_id} at {r.site_id}: installs grew {g:.0%} "
-            f"({r.installs_prev} to {r.installs}), fence {fence:.0%}",
+            f"({r.installs_prev} to {r.installs}), threshold {threshold:.0%}",
         }
         for r, g in zip(joined.itertuples(), growth, strict=True)
-        if g > fence
+        if g > threshold
     ]
     return _frame(rows)
 

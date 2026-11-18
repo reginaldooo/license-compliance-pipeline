@@ -70,5 +70,6 @@ jobs:
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
         run: |
           # FLAGS is intentionally unquoted so it splits into separate arguments
-          uv run python -m license_pipeline.run --generate \
-            --today "$(date -u +%F)" --digest "$SITE" $FLAGS
+          # The scenario is picked from the date, and the date also seeds the data
+          uv run python -m license_pipeline.run --generate --scenario random \
+            --today "$(date -u +%F)" --seed "$(date -u +%Y%m%d)" --digest "$SITE" $FLAGS

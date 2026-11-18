@@ -165,3 +165,15 @@ def test_name_products_does_not_nest_parentheses():
     )
     both = digest.name_products("P012 at S1 (P012)", names)
     assert both == "VMware vSphere (P012) at S1 (VMware vSphere)"
+
+
+def test_digest_mentions_scenario_when_given(alerts, contracts, owners):
+    _, text, html = digest.build_digest(
+        alerts, contracts, owners, "S1", TODAY, 0, scenario_name="borderline"
+    )
+    assert "Data scenario today: borderline" in text and "borderline" in html
+
+
+def test_digest_omits_scenario_line_when_not_given(alerts, contracts, owners):
+    _, text, _ = digest.build_digest(alerts, contracts, owners, "S1", TODAY, 0)
+    assert "scenario" not in text.lower()

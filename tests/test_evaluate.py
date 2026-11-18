@@ -49,3 +49,28 @@ def test_report_lists_rules_counts_and_synthetic_notice():
 def test_write_report_creates_file(tmp_path):
     path = evaluate.write_report("hello", tmp_path / "out")
     assert path.read_text() == "hello"
+
+
+def test_rule_flagged_with_nothing_injected_counts_as_all_false_positives():
+    out = evaluate.score(found([("r1", "a"), ("ghost", "q"), ("ghost", "w")]), truth(), "alert")
+    ghost = out.set_index("rule").loc["ghost"]
+    assert (ghost["expected"], ghost["flagged"], ghost["fp"]) == (0, 2, 2)
+    assert ghost["precision"] == 0.0 and math.isnan(ghost["recall"])
+
+
+def test_overall_is_micro_averaged_across_rules():
+    scores = evaluate.score(found([("r1", "a"), ("r1", "z"), ("r2", "x")]), truth(), "alert")
+    precision, recall = evaluate.overall(scores)
+    assert math.isclose(precision, 2 / 3)  # tp 2 (a, x), fp 1 (z)
+    assert math.isclose(recall, 2 / 4)  # tp 2, fn 2 (b, c)
+
+
+def test_overall_of_empty_scores_is_nan():
+    precision, recall = evaluate.overall(evaluate.score(found([]), truth().iloc[0:0], "alert"))
+    assert math.isnan(precision) and math.isnan(recall)
+
+
+def test_summary_names_scenario_and_lists_rules():
+    scores = evaluate.score(found([("r1", "a")]), truth(), "alert")
+    text = evaluate.render_summary("borderline", scores, evaluate.score(found([]), truth(), "dq"))
+    assert "borderline" in text and "r1" in text

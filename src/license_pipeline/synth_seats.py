@@ -26,11 +26,10 @@ def _last_active(
 
 
 def build_usage(
-    rng: np.random.Generator, catalog: pd.DataFrame, today: date
+    rng: np.random.Generator, catalog: pd.DataFrame, today: date, n: int = config.N_USAGE_SEATS
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     eligible = catalog[(catalog["metric"] == "user") & (catalog["category"] != "ai")]
     product_ids = eligible["product_id"].tolist()
-    n = config.N_USAGE_SEATS
     dates, unused = _last_active(rng, n, today)
     rows = [
         {
@@ -46,11 +45,10 @@ def build_usage(
 
 
 def build_ai_seats(
-    rng: np.random.Generator, catalog: pd.DataFrame, today: date
+    rng: np.random.Generator, catalog: pd.DataFrame, today: date, n: int = config.N_AI_SEATS
 ) -> tuple[pd.DataFrame, list[tuple[str, str, str]]]:
     ai = catalog[catalog["category"] == "ai"].set_index("product_id")
     product_ids = ai.index.tolist()
-    n = config.N_AI_SEATS
     dates, unused = _last_active(rng, n, today)
     rows = []
     for i in range(n):

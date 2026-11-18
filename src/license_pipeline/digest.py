@@ -70,6 +70,7 @@ def build_digest(
     dashboard_url: str | None = None,
     top_n: int = DEFAULT_TOP_N,
     product_names: Mapping[str, str] | None = None,
+    scenario_name: str | None = None,
 ) -> tuple[str, str, str]:
     """Return (subject, plain text, html) for one site."""
     site_name = config.SITES[site_id][0]
@@ -92,6 +93,8 @@ def build_digest(
     text += [f"Data quality: {dq_issues} open issues."]
     if dashboard_url:
         text += [f"Dashboard: {dashboard_url}"]
+    if scenario_name:
+        text += [f"Data scenario today: {scenario_name}."]
     text += ["", NOTICE]
 
     rows = "".join(
@@ -111,10 +114,13 @@ def build_digest(
         else f"<table border='1' cellpadding='4'><tr><th>Severity</th><th>Rule</th>"
         f"<th>Alert</th></tr>{rows}</table>"
     )
+    scenario_html = (
+        f"<p>Data scenario today: {html.escape(scenario_name)}.</p>" if scenario_name else ""
+    )
     page = (
         f"<h2>License digest: {html.escape(site_name)}, {today.isoformat()}</h2>{body}"
         f"<p>Org-wide: {idle_seats} seats unused for more than {config.UNUSED_DAYS} days. "
-        f"Data quality: {dq_issues} open issues.</p>{link}<p><i>{NOTICE}</i></p>"
+        f"Data quality: {dq_issues} open issues.</p>{link}{scenario_html}<p><i>{NOTICE}</i></p>"
     )
     return subject, "\n".join(text), page
 
