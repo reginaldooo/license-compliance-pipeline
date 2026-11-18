@@ -124,10 +124,13 @@ Each run uses one data scenario. `--scenario random` picks one from the date, so
 |---|---|
 | baseline | Clean data, injected cases well clear of every threshold |
 | borderline | Near-misses on both sides of every threshold: notice deadlines at 0, 30, 31, 60, 61, 90, 91, 92 days, installs at entitlement -1, 0, +1, seats idle 89 to 92 days, Microsoft contracts starting on and the day before the price-change date, and install growth from 12% to 80%. Labels follow the definitions in the alert rules table, written separately from the rule code |
+| conflict | Contract ids that appear twice with different values (`conflicting_duplicate`), contracts whose renewal date has passed (`expired_contract`), and contracts whose owner id does not exist (`unknown_owner`). Conflicting copies are all quarantined, because there is no way to tell which one is right |
 | messy | Harsher product names (spaces removed, hyphens, dropped or doubled letters, version suffixes, truncated cells), five date formats instead of three, blank seats, cost, or notice days, and three times as many unknown products |
 | scale | Eight times the volume (960 contracts, 12,000 usage seats), more injected cases |
 
 Every run records its scenario and its measured precision and recall (micro-averaged across rules) in `pipeline_run_log`, and prints a per-rule table on the GitHub Actions run page. What the scenarios found so far: borderline found no off-by-one errors in the rules (20 seeds). The scale scenario exposed that the first spike rule failed when many pairs spiked at once, which led to the median-based rule above. The messy scenario exposed two problems in product-name matching, over 20 seeds: 30 of 2,484 mappable names (1.2%) failed because the cell was cut off, and the fuzzy matcher mapped bare vendor names such as "Microsoft" to one arbitrary product. Both are fixed (unique-prefix matching for cut-off cells, and ties between products now stay unmapped). Name-match recall rose from 98.8% to 99.6%, with no wrong mappings. The nine remaining misses are all `MATLAB` with a letter dropped, which falls under the 6-character floor for fuzzy matching. That floor stays, because guessing at 5-letter fragments is how false mappings start.
+
+Not covered: an owner sitting at the wrong site. Contracts carry no site of their own, so there is nothing for the owner's site to conflict with.
 
 ## Status
 

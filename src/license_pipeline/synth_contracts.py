@@ -144,7 +144,13 @@ def _boundary_overrides(
 
 
 def _dq_extras(
-    rng: np.random.Generator, make_extra, base: list[dict], n: int, messy: bool = False
+    rng: np.random.Generator,
+    make_extra,
+    base: list[dict],
+    n: int,
+    messy: bool = False,
+    conflicts: bool = False,
+    today: date | None = None,
 ) -> tuple[list[dict], list[tuple[str, str, str]]]:
     extras, truth = [], []
     for idx in (int(i) for i in rng.permutation(len(base))[:n]):
@@ -171,7 +177,29 @@ def _dq_extras(
         rec = {**make_extra(), MISSING_FIELDS[i % len(MISSING_FIELDS)]: None}
         extras.append(rec)
         truth.append(("dq", "missing_value", rec["contract_id"]))
+    if conflicts:
+        extras, truth = _conflict_extras(rng, make_extra, n, today, extras, truth)
     return extras, truth
+
+
+def _conflict_extras(rng, make_extra, n, today, extras, truth):
+    """Pairs of rows sharing an id but not values, expired contracts, and unknown owners."""
+    new_extras, new_truth = [], []
+    for _ in range(n):
+        rec = make_extra()
+        other = {**rec, "seats_purchased": int(rec["seats_purchased"]) + int(rng.integers(5, 50))}
+        new_extras += [rec, other]
+        new_truth.append(("dq", "conflicting_duplicate", rec["contract_id"]))
+    for _ in range(n):
+        renewal = today - timedelta(days=int(rng.integers(5, 120)))
+        rec = {**make_extra(), "start_date": renewal - timedelta(days=365), "renewal_date": renewal}
+        new_extras.append(rec)
+        new_truth.append(("dq", "expired_contract", rec["contract_id"]))
+    for i in range(n):
+        rec = {**make_extra(), "owner_id": f"O9{i:02d}"}
+        new_extras.append(rec)
+        new_truth.append(("dq", "unknown_owner", rec["contract_id"]))
+    return [*extras, *new_extras], [*truth, *new_truth]
 
 
 def build_contracts(
@@ -227,7 +255,9 @@ def build_contracts(
             rng, f"C{counter[0]:04d}", products.loc[combo[0]], combo[1], owners_by_site, today
         )
 
-    extras, dq_truth = _dq_extras(rng, make_extra, records, scenario.n_inject, scenario.messy)
+    extras, dq_truth = _dq_extras(
+        rng, make_extra, records, scenario.n_inject, scenario.messy, scenario.conflicts, today
+    )
     contract_only = set(plan.contract_only)
     structural = [
         ("dq", "contract_without_inventory", c["contract_id"])

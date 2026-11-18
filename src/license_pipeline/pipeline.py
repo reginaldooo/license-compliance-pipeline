@@ -18,8 +18,8 @@ def run_pipeline(
     tables = load_tables(raw_dir)
     catalog = pd.read_csv(config.CATALOG_PATH)
     inventory = normalize_inventory(tables["inventory"], catalog)
-    dq_issue = run_checks(tables["contracts"], tables["owners"], inventory)
-    contracts = quarantine(tables["contracts"])
+    dq_issue = run_checks(tables["contracts"], tables["owners"], inventory, today)
+    contracts = quarantine(tables["contracts"], tables["owners"], today)
     alert = run_alerts(
         contracts, tables["owners"], catalog, inventory, tables["usage"], tables["ai_seats"], today
     )

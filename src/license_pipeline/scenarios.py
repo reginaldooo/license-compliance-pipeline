@@ -32,6 +32,12 @@ SCENARIOS: dict[str, Scenario] = {
             borderline=True,
         ),
         Scenario(
+            "conflict",
+            "Contract ids that appear twice with different values, contracts that already "
+            "expired, and contracts whose owner does not exist.",
+            conflicts=True,
+        ),
+        Scenario(
             "messy",
             "Harsher product-name noise, extra date formats, blank contract fields, and three "
             "times as many unknown products.",

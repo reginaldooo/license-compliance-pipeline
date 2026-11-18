@@ -1,5 +1,7 @@
 """Data quality checks. Each check returns dq rows: rule, table, record_ref, severity."""
 
+from datetime import date
+
 import pandas as pd
 
 DQ_COLUMNS = ["rule", "table", "record_ref", "severity"]
@@ -38,9 +40,46 @@ def _negative_seats_mask(contracts: pd.DataFrame) -> pd.Series:
     return contracts["seats_purchased"] < 0
 
 
+def _repeated_ids(contracts: pd.DataFrame) -> tuple[set[str], set[str]]:
+    """Split repeated contract ids into (identical copies, copies that differ)."""
+    counts = contracts["contract_id"].value_counts()
+    identical, conflicting = set(), set()
+    for contract_id in counts[counts > 1].index:
+        copies = contracts[contracts["contract_id"] == contract_id]
+        (identical if len(copies.drop_duplicates()) == 1 else conflicting).add(contract_id)
+    return identical, conflicting
+
+
+def _expired_mask(contracts: pd.DataFrame, today: date) -> pd.Series:
+    """Past renewal date. Rows whose dates are themselves invalid are reported as such instead."""
+    invalid = _invalid_date_mask(contracts)
+    past = [r is not None and r < today for r in contracts["renewal_date"]]
+    return pd.Series(past, index=contracts.index) & ~invalid
+
+
+def _unknown_owner_mask(contracts: pd.DataFrame, owners: pd.DataFrame) -> pd.Series:
+    owner = contracts["owner_id"].fillna("").str.strip()
+    return (owner != "") & ~owner.isin(set(owners["owner_id"]))
+
+
 def check_duplicates(contracts: pd.DataFrame) -> pd.DataFrame:
-    repeated = contracts.loc[contracts["contract_id"].duplicated(keep=False), "contract_id"]
-    return _rows("duplicate", "contracts", repeated.tolist(), ERROR)
+    identical, _ = _repeated_ids(contracts)
+    return _rows("duplicate", "contracts", list(identical), ERROR)
+
+
+def check_conflicting_duplicates(contracts: pd.DataFrame) -> pd.DataFrame:
+    _, conflicting = _repeated_ids(contracts)
+    return _rows("conflicting_duplicate", "contracts", list(conflicting), ERROR)
+
+
+def check_expired(contracts: pd.DataFrame, today: date) -> pd.DataFrame:
+    ids = contracts.loc[_expired_mask(contracts, today), "contract_id"]
+    return _rows("expired_contract", "contracts", ids.tolist(), ERROR)
+
+
+def check_unknown_owner(contracts: pd.DataFrame, owners: pd.DataFrame) -> pd.DataFrame:
+    ids = contracts.loc[_unknown_owner_mask(contracts, owners), "contract_id"]
+    return _rows("unknown_owner", "contracts", ids.tolist(), ERROR)
 
 
 def check_missing_owner(contracts: pd.DataFrame) -> pd.DataFrame:
@@ -95,33 +134,49 @@ def check_inventory_without_contract(
     return _rows("inventory_without_contract", "inventory", ids, WARNING)
 
 
-def quarantine(contracts: pd.DataFrame) -> pd.DataFrame:
-    """Drop contracts that fail a blocking check, then drop repeated contract ids."""
+def quarantine(
+    contracts: pd.DataFrame, owners: pd.DataFrame | None = None, today: date | None = None
+) -> pd.DataFrame:
+    """Drop contracts that fail a blocking check, then drop identical repeated rows.
+
+    Owner and expiry checks run only when owners or today are given.
+    """
+    _, conflicting = _repeated_ids(contracts)
     bad = (
         _missing_owner_mask(contracts)
         | _invalid_date_mask(contracts)
         | _negative_seats_mask(contracts)
         | _missing_value_mask(contracts)
+        | contracts["contract_id"].isin(conflicting)
     )
+    if owners is not None:
+        bad = bad | _unknown_owner_mask(contracts, owners)
+    if today is not None:
+        bad = bad | _expired_mask(contracts, today)
     return contracts.loc[~bad].drop_duplicates("contract_id").reset_index(drop=True)
 
 
 def run_checks(
-    contracts: pd.DataFrame, owners: pd.DataFrame, inventory: pd.DataFrame
+    contracts: pd.DataFrame,
+    owners: pd.DataFrame,
+    inventory: pd.DataFrame,
+    today: date | None = None,
 ) -> pd.DataFrame:
     """Run blocking checks on raw contracts, then structural checks on the quarantined set."""
-    valid = quarantine(contracts)
+    valid = quarantine(contracts, owners, today)
     mapped = inventory.dropna(subset=["product_id"])
-    return pd.concat(
-        [
-            check_duplicates(contracts),
-            check_missing_owner(contracts),
-            check_invalid_dates(contracts),
-            check_negative_seats(contracts),
-            check_missing_values(contracts),
-            check_unmapped_product(inventory),
-            check_contract_without_inventory(valid, owners, mapped),
-            check_inventory_without_contract(inventory, valid, owners),
-        ],
-        ignore_index=True,
-    )
+    frames = [
+        check_duplicates(contracts),
+        check_conflicting_duplicates(contracts),
+        check_missing_owner(contracts),
+        check_unknown_owner(contracts, owners),
+        check_invalid_dates(contracts),
+        check_negative_seats(contracts),
+        check_missing_values(contracts),
+        check_unmapped_product(inventory),
+        check_contract_without_inventory(valid, owners, mapped),
+        check_inventory_without_contract(inventory, valid, owners),
+    ]
+    if today is not None:
+        frames.append(check_expired(contracts, today))
+    return pd.concat(frames, ignore_index=True)
