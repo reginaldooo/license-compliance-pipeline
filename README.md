@@ -42,6 +42,23 @@ Every parameter lives in `src/license_pipeline/config.py`.
 | Product names | Raw names carry typos, case, and vendor prefixes | Mimics spreadsheet inventory |
 | Dates | Mixed formats (ISO, DD/MM/YYYY, "12 Mar 2026") | Mimics spreadsheet entry |
 
+## Synthetic data and ground truth
+
+`uv run python -m license_pipeline.generate` writes raw CSVs to `data/raw/` (git-ignored, regenerated from the seed). The generator also writes `ground_truth.csv`, which lists every injected case per rule. Only the evaluation step reads it; the pipeline never does.
+
+| Injected case | Count | Rule |
+|---|---|---|
+| Contract near renewal (30, 60, 90 day tiers, measured from the notice deadline) | 8 per tier | renewal_30, renewal_60, renewal_90 |
+| Microsoft contract started before 2026-07-01 and renewing after it | 8 | price_change_renewal |
+| Installs above entitlement per product and site, latest scan | 8 | installs_over_entitlement |
+| Installs jump of 100% or more versus previous scan | 8 | usage_spike |
+| Seat inactive for more than 90 days | about 37% of seats | seat_unused_90d |
+| Duplicate, missing owner, invalid date, negative seats, unmapped product | 8 each | data quality |
+| Contract without inventory, inventory without contract | structural, from 4 reserved product-site pairs each | data quality |
+
+Rows that fail a blocking data quality check are quarantined and excluded from alert evaluation.
+
 ## Status
 
 - [x] Day 1: scaffold, config, catalog, assumptions register
+- [x] Day 2: seeded generator with injected anomalies and ground truth (30 tests, 99% coverage)

@@ -32,3 +32,10 @@ FUZZY_MIN_SCORE = 88
 
 # Injected anomalies per rule (ground truth for evaluation)
 INJECT_PER_RULE = 8
+
+# Generator extras
+COMPANY_NAME = "Aerolux Group (fictional)"
+SCAN_OFFSETS_DAYS = (62, 32, 2)  # monthly inventory scans, oldest first
+RENEWAL_TIERS = ((30, 3, 27), (60, 33, 57), (90, 63, 87))  # (window, min, max days to notice)
+N_CONTRACT_ONLY_COMBOS = 4
+N_INVENTORY_ONLY_COMBOS = 4
