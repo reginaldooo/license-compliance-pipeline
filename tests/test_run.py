@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pandas as pd
 import pytest
@@ -59,3 +59,44 @@ def test_main_local_generate(tmp_path, capsys):
     code = run.main([*argv, "--out-dir", str(tmp_path / "o")])
     assert code == 0
     assert "success" in capsys.readouterr().out
+
+
+def test_main_digest_dry_run_prints_subject_without_sending(tmp_path, capsys):
+    argv = ["--local", "--generate", "--raw-dir", str(tmp_path / "raw"),
+            "--out-dir", str(tmp_path / "o"), "--digest", "jakarta", "--dry-run", "--force"]
+    assert run.main(argv) == 0
+    out = capsys.readouterr().out
+    assert "[License digest] Jakarta" in out
+
+
+def test_main_digest_skips_outside_send_hour(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(run, "should_send", lambda site_id, now: False)
+    argv = ["--local", "--generate", "--raw-dir", str(tmp_path / "raw"),
+            "--out-dir", str(tmp_path / "o"), "--digest", "paris"]
+    assert run.main(argv) == 0
+    assert "skipped" in capsys.readouterr().out
+    assert not (tmp_path / "o").exists()
+
+
+def test_run_generates_data_for_the_given_day(tmp_path):
+    result = run.run(
+        raw_dir=tmp_path / "raw", out_dir=tmp_path / "out", generate_data=True,
+        today=date(2027, 2, 1), clock=lambda: NOW,
+    )
+    assert len(result["fact_contract"]) == 120
+
+
+def test_deliver_digest_sends_with_env_settings(tmp_path, monkeypatch):
+    sent = []
+    monkeypatch.setattr(run, "send_email", lambda *args: sent.append(args))
+    monkeypatch.setenv("SMTP_USER", "me@x.test")
+    monkeypatch.setenv("SMTP_APP_PASSWORD", "pw")
+    monkeypatch.setenv("DIGEST_TO", "you@x.test")
+    result = run.run(
+        raw_dir=tmp_path / "raw", out_dir=tmp_path / "out", generate_data=True, clock=lambda: NOW
+    )
+    message = run.deliver_digest(result, "paris", date(2026, 11, 18), dry_run=False)
+    assert "you@x.test" in message
+    subject, _, _, to, settings = sent[0]
+    assert subject.startswith("[License digest] Paris") and to == ["you@x.test"]
+    assert settings.user == "me@x.test"

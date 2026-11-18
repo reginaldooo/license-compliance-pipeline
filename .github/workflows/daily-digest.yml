@@ -1,0 +1,74 @@
+name: Daily digest
+
+# GitHub cron runs in UTC only. Jakarta (WIB) has no daylight saving time.
+# Paris is UTC+1 in winter and UTC+2 in summer, so both UTC hours are scheduled and
+# the program sends only when it is 09:00 in the site's local time.
+on:
+  schedule:
+    - cron: "0 2 * * 1-5"   # 09:00 Jakarta
+    - cron: "0 7 * * 1-5"   # 09:00 Paris in summer (CEST)
+    - cron: "0 8 * * 1-5"   # 09:00 Paris in winter (CET)
+  workflow_dispatch:
+    inputs:
+      site:
+        description: Site to send the digest for
+        type: choice
+        options: [paris, jakarta]
+        required: true
+      dry_run:
+        description: Print the digest instead of emailing it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Choose site and flags
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_SITE: ${{ inputs.site }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "site=$INPUT_SITE" >> "$GITHUB_OUTPUT"
+            flags="--force"
+            if [ "$INPUT_DRY_RUN" = "true" ]; then flags="$flags --dry-run"; fi
+            echo "flags=$flags" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE" = "0 2 * * 1-5" ]; then
+            echo "site=jakarta" >> "$GITHUB_OUTPUT"
+            echo "flags=" >> "$GITHUB_OUTPUT"
+          else
+            echo "site=paris" >> "$GITHUB_OUTPUT"
+            echo "flags=" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Run pipeline and send digest
+        env:
+          SITE: ${{ steps.plan.outputs.site }}
+          FLAGS: ${{ steps.plan.outputs.flags }}
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: |
+          # FLAGS is intentionally unquoted so it splits into separate arguments
+          uv run python -m license_pipeline.run --generate \
+            --today "$(date -u +%F)" --digest "$SITE" $FLAGS

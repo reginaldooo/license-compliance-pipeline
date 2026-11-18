@@ -92,6 +92,26 @@ uv run python -m license_pipeline.run --generate
 
 A failed run writes a `failed` row to the local run log and re-raises, so a scheduled job turns red instead of passing silently.
 
+## Daily digest
+
+`uv run python -m license_pipeline.run --generate --today 2026-11-18 --digest paris --dry-run --force` prints the Paris digest without sending it. Alerts are filtered per site: contract alerts by owner site, installs and spike alerts by their `product|site` reference. Idle-seat counts are org-wide because seats carry no site.
+
+| Setting | Where | Purpose |
+|---|---|---|
+| `SMTP_USER`, `SMTP_APP_PASSWORD` | GitHub secrets | Gmail account and app password (2-step verification required) |
+| `DIGEST_TO` or `DIGEST_TO_PARIS` / `DIGEST_TO_JAKARTA` | GitHub secrets | Comma-separated recipients |
+| `GCP_PROJECT`, `GCP_SA_KEY` | GitHub secrets | BigQuery project and service account key |
+| `DASHBOARD_URL` | GitHub variable | Link added to the email once the dashboard exists. Omitted when unset |
+
+Schedules (`.github/workflows/daily-digest.yml`), Monday to Friday:
+
+| Site | UTC cron | Local time |
+|---|---|---|
+| Jakarta | `0 2 * * 1-5` | 09:00 WIB, no daylight saving time |
+| Paris | `0 7 * * 1-5` and `0 8 * * 1-5` | 09:00 CEST in summer, 09:00 CET in winter |
+
+GitHub cron only supports UTC, so both Paris hours are scheduled. The program checks the site's local clock first and exits before running the pipeline unless it is 09:00 there. A delayed GitHub start still sends if it lands within the same local hour. `workflow_dispatch` can send or dry-run either site on demand.
+
 ## Status
 
 - [x] Day 1: scaffold, config, catalog, assumptions register
@@ -99,4 +119,6 @@ A failed run writes a `failed` row to the local run log and re-raises, so a sche
 - [x] Day 3: ingest, name normalization (rules, then fuzzy), 7 data quality checks matching ground truth exactly (84 tests, 99% coverage)
 - [x] Day 4: 5 alert rule families (7 scored rules), pipeline orchestration, precision/recall evaluation (`reports/eval_report.md`, 104 tests, 99% coverage)
 - [x] Day 5 (local part): Parquet load, BigQuery loader (tested with a fake client), run log, CLI, CI workflow (112 tests, 99% coverage)
+- [x] Day 6 (code): digest with per-site filtering, product names, DST-safe 09:00 guard, SMTP sender, scheduled workflow (134 tests, 99% coverage)
+- [ ] Day 6 (cloud part): GitHub repo, secrets, first scheduled run and received email
 - [x] Day 5 (cloud part): first real BigQuery load on the free sandbox (9 tables, 677 alerts, 62 DQ issues). Sandbox tables expire after 60 days, so rerun the pipeline to refresh them
