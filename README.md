@@ -99,4 +99,4 @@ A failed run writes a `failed` row to the local run log and re-raises, so a sche
 - [x] Day 3: ingest, name normalization (rules, then fuzzy), 7 data quality checks matching ground truth exactly (84 tests, 99% coverage)
 - [x] Day 4: 5 alert rule families (7 scored rules), pipeline orchestration, precision/recall evaluation (`reports/eval_report.md`, 104 tests, 99% coverage)
 - [x] Day 5 (local part): Parquet load, BigQuery loader (tested with a fake client), run log, CLI, CI workflow (112 tests, 99% coverage)
-- [ ] Day 5 (cloud part): first real BigQuery load
+- [x] Day 5 (cloud part): first real BigQuery load on the free sandbox (9 tables, 677 alerts, 62 DQ issues). Sandbox tables expire after 60 days, so rerun the pipeline to refresh them
