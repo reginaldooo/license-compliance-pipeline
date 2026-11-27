@@ -22,6 +22,7 @@ This table is rewritten by a workflow after each digest run. Runs older than 7 d
 
 | Run time (UTC) | Trigger | Result | Link |
 |---|---|---|---|
+| 2026-11-27 10:37 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45983719996) |
 | 2026-11-26 18:18 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45874884389) |
 | 2026-11-26 17:28 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45867988698) |
 | 2026-11-26 10:33 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45802460433) |
@@ -36,7 +37,6 @@ This table is rewritten by a workflow after each digest run. Runs older than 7 d
 | 2026-11-23 10:26 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45156111587) |
 | 2026-11-20 16:53 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44777892973) |
 | 2026-11-20 15:52 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44767599038) |
-| 2026-11-20 09:46 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44713588951) |
 <!-- runs:end -->
 
 ## Limits of this evidence
