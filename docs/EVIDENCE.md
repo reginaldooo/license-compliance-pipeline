@@ -18,10 +18,11 @@ This file lets a reviewer check that the pipeline runs on its own, without takin
 This table is rewritten by a workflow after each digest run. Runs older than 7 days are dropped on purpose.
 
 <!-- runs:start -->
-15 runs in the last 7 days: 15 scheduled, 0 manual; 15 succeeded, 0 failed.
+14 runs in the last 7 days: 14 scheduled, 0 manual; 14 succeeded, 0 failed.
 
 | Run time (UTC) | Trigger | Result | Link |
 |---|---|---|---|
+| 2026-11-27 17:07 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/46039282349) |
 | 2026-11-27 10:37 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45983719996) |
 | 2026-11-26 18:18 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45874884389) |
 | 2026-11-26 17:28 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45867988698) |
@@ -35,8 +36,6 @@ This table is rewritten by a workflow after each digest run. Runs older than 7 d
 | 2026-11-23 20:02 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45255102976) |
 | 2026-11-23 18:54 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45243226280) |
 | 2026-11-23 10:26 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/45156111587) |
-| 2026-11-20 16:53 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44777892973) |
-| 2026-11-20 15:52 | scheduled | success | [run](https://github.com/reginaldooo/license-compliance-pipeline/actions/runs/44767599038) |
 <!-- runs:end -->
 
 ## Limits of this evidence
